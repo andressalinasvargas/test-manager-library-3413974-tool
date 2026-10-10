@@ -1,20 +1,20 @@
 <?php
 
 /**
- * Sembrador de datos de demostración (T-21, RNF-1).
- * Usa EXCLUSIVAMENTE la API REST (data-model §9).
- * Siembra:
- *   - 1 usuario bibliotecario
- *   - 40 libros en las 5 categorías
- *   - 10 socios
- *   - 15 préstamos (algunos con líneas devueltas, otros activos, y 3 vencidos)
+ * Demonstration database seeder (T-21, RNF-1).
+ * Uses EXCLUSIVELY the REST API without direct SQL (data-model §9).
+ * Seeds:
+ *   - 1 librarian user
+ *   - 40 books across the 5 categories
+ *   - 10 members
+ *   - 15 loans (including returned items, active items, and 3 overdue items)
  */
 
 $baseUrl = getenv('API_URL') ?: 'http://localhost:8000/api/v1';
 $adminUser = getenv('ADMIN_USERNAME') ?: 'admin';
-$adminPass = getenv('ADMIN_PASSWORD') ?: '248bb29a7b9070fe'; // Contraseña autogenerada en infra/.env
+$adminPass = getenv('ADMIN_PASSWORD') ?: '248bb29a7b9070fe'; // Auto-generated password from infra/.env
 
-echo "=== Iniciando Sembrador Manager Library (API: {$baseUrl}) ===\n";
+echo "=== Starting Manager Library Seeder (API: {$baseUrl}) ===\n";
 
 function request($method, $url, $body = null, $token = null, $extraHeaders = []) {
     $ch = curl_init($url);
@@ -42,47 +42,47 @@ function request($method, $url, $body = null, $token = null, $extraHeaders = [])
     return ['status' => $status, 'data' => $json, 'raw' => $res];
 }
 
-// 1. Iniciar sesión como Admin
-echo "1. Autenticando administrador...\n";
+// 1. Authenticate as Admin
+echo "1. Authenticating administrator...\n";
 $auth = request('POST', "{$baseUrl}/auth/login", [
     'username' => $adminUser,
     'password' => $adminPass,
 ]);
 
 if ($auth['status'] !== 200 || empty($auth['data']['access_token'])) {
-    die("ERROR: No se pudo autenticar como admin ({$auth['status']}): {$auth['raw']}\n");
+    die("ERROR: Could not authenticate as admin ({$auth['status']}): {$auth['raw']}\n");
 }
 $token = $auth['data']['access_token'];
-echo "   Autenticado con éxito (rol: {$auth['data']['role']}).\n";
+echo "   Authenticated successfully (role: {$auth['data']['role']}).\n";
 
-// 2. Obtener Categorías
-echo "2. Obteniendo categorías...\n";
+// 2. Fetch Categories
+echo "2. Fetching categories...\n";
 $catRes = request('GET', "{$baseUrl}/categories", null, $token);
 $categories = $catRes['data'];
 if (empty($categories)) {
-    die("ERROR: No se encontraron categorías.\n");
+    die("ERROR: No categories found.\n");
 }
 $catMap = [];
 foreach ($categories as $c) {
     $catMap[$c['name']] = $c['id'];
 }
-echo "   " . count($categories) . " categorías encontradas.\n";
+echo "   " . count($categories) . " categories found.\n";
 
-// 3. Crear Bibliotecario
-echo "3. Creando bibliotecario 'ana'...\n";
+// 3. Create Librarian
+echo "3. Creating librarian 'ana'...\n";
 $libRes = request('POST', "{$baseUrl}/users", [
     'username' => 'ana',
     'password' => 'Biblioteca2026*',
     'role' => 'librarian',
 ], $token);
 if ($libRes['status'] === 201) {
-    echo "   Bibliotecario creado.\n";
+    echo "   Librarian created.\n";
 } elseif ($libRes['status'] === 409) {
-    echo "   Bibliotecario ya existía (409).\n";
+    echo "   Librarian already exists (409).\n";
 }
 
-// 4. Crear 40 Libros
-echo "4. Sembrando 40 libros...\n";
+// 4. Seed 40 Books
+echo "4. Seeding 40 books...\n";
 $createdBooks = [];
 $catNames = array_keys($catMap);
 
@@ -90,7 +90,7 @@ for ($i = 1; $i <= 40; $i++) {
     $catName = $catNames[($i - 1) % count($catNames)];
     $catId = $catMap[$catName];
     $isbn = sprintf('978%010d', 1000000000 + $i);
-    $copies = ($i % 5) + 2; // entre 2 y 6 copias
+    $copies = ($i % 5) + 2; // Between 2 and 6 copies
 
     $bookData = [
         'title' => "Libro Ejemplar #{$i} de {$catName}",
@@ -104,17 +104,17 @@ for ($i = 1; $i <= 40; $i++) {
     if ($bRes['status'] === 201) {
         $createdBooks[] = $bRes['data'];
     } elseif ($bRes['status'] === 409) {
-        // Si ya existe por ISBN, buscarlo
+        // If already exists by ISBN, look it up
         $sRes = request('GET', "{$baseUrl}/books?q=" . urlencode($isbn), null, $token);
         if (!empty($sRes['data']['items'][0])) {
             $createdBooks[] = $sRes['data']['items'][0];
         }
     }
 }
-echo "   " . count($createdBooks) . " libros listos.\n";
+echo "   " . count($createdBooks) . " books ready.\n";
 
-// 5. Crear 10 Socios
-echo "5. Sembrando 10 socios...\n";
+// 5. Seed 10 Members
+echo "5. Seeding 10 members...\n";
 $createdMembers = [];
 for ($i = 1; $i <= 10; $i++) {
     $doc = sprintf('1098%06d', $i);
@@ -132,14 +132,14 @@ for ($i = 1; $i <= 10; $i++) {
         }
     }
 }
-echo "   " . count($createdMembers) . " socios listos.\n";
+echo "   " . count($createdMembers) . " members ready.\n";
 
-// 6. Crear 15 Préstamos (con 3 vencidos usando simulación de tiempo si disponible)
-echo "6. Sembrando 15 préstamos...\n";
+// 6. Seed 15 Loans (with 3 overdue using time simulation if supported)
+echo "6. Seeding 15 loans...\n";
 $loansCreated = 0;
 for ($i = 0; $i < 15; $i++) {
     $member = $createdMembers[$i % count($createdMembers)];
-    // Asignar de 1 a 2 libros
+    // Assign 1 to 2 books
     $bookA = $createdBooks[($i * 2) % count($createdBooks)];
     $bookB = $createdBooks[($i * 2 + 1) % count($createdBooks)];
 
@@ -149,7 +149,7 @@ for ($i = 0; $i < 15; $i++) {
     }
 
     $extraHeaders = [];
-    // Para los primeros 3 préstamos, enviar fecha simulada en el pasado para que queden vencidos
+    // For first 3 loans, send simulated past timestamp to generate overdue state
     if ($i < 3) {
         $pastDate = date('Y-m-d\TH:i:s\Z', strtotime('-20 days'));
         $extraHeaders[] = "X-Simulated-Time: {$pastDate}";
@@ -162,7 +162,7 @@ for ($i = 0; $i < 15; $i++) {
 
     if ($lRes['status'] === 201) {
         $loansCreated++;
-        // Devolver una línea en algunos préstamos (ej. el #5 y #6)
+        // Return a line item in specific loans
         if ($i >= 5 && $i <= 6 && !empty($lRes['data']['items'][0])) {
             $loanId = $lRes['data']['id'];
             $itemId = $lRes['data']['items'][0]['id'];
@@ -170,7 +170,6 @@ for ($i = 0; $i < 15; $i++) {
         }
     }
 }
-echo "   {$loansCreated} préstamos creados.\n";
+echo "   {$loansCreated} loans created.\n";
 
-echo "=== Sembrado completado con éxito ===\n";
-
+echo "=== Seeding finished successfully ===\n";
