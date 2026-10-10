@@ -3,17 +3,22 @@
 > **Prueba técnica · Ficha ADSO 3413974**
 > Horario: de **9:15 a. m. a 3:00 p. m.** (15:00). Después, **feria de presentación** de cada proyecto.
 
-Este repositorio guarda las **utilidades** de *Manager Library*: el sembrador de datos de demostración, que usa la API. **Empieza vacío a propósito**: se construye en el fork de cada aprendiz.
+Este repositorio guarda las **utilidades** de *Manager Library*: el sembrador de datos de demostración (`seed.php`), que interactúa exclusivamente a través de la API REST sin inyecciones SQL directas.
 
-## Instrucciones
+## Uso del Sembrador (T-21)
 
-Cada aprendiz debe **crear el fork** de los seis repositorios del proyecto y **resolver el proyecto
-con el spec planteado**.
+El script `seed.php` ejecuta la siembra requerida por la especificación:
+- **1 Usuario Bibliotecario:** crea al usuario `ana` con contraseña `Biblioteca2026*`.
+- **40 Libros:** distribuidos equitativamente en las 5 categorías inmutables.
+- **10 Socios Lectores:** con números de documento válidos.
+- **15 Préstamos:** incluyendo préstamos activos, devoluciones parciales y 3 préstamos vencidos usando la cabecera `X-Simulated-Time`.
 
-1. Hacer fork, a su cuenta de GitHub, de cada repositorio de la tabla del final.
-2. Leer el spec en [`test-manager-library-3413974-docs`](https://github.com/code-sena/test-manager-library-3413974-docs).
-   Se entrega en dos versiones: `spec-python/` y `spec-.net/`.
-3. Desarrollar en los forks.
+### Ejecución
+
+```bash
+# Con la API en ejecución en http://localhost:8000/api/v1
+php seed.php
+```
 
 ## El reto se desarrolla con React y PHP (Laravel)
 
